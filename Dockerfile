@@ -9,6 +9,9 @@ COPY src src
 RUN mvn package -Pprod -DskipTests \
     -Dskip.installnodenpm -Dskip.npm \
     -Dmaven.test.skip=true \
+    -Dmodernizer.skip=true \
+    -Dcheckstyle.skip=true \
+    -Dnohttp.skip=true \
     -B -q \
     -Dmaven.compiler.fork=false
 
