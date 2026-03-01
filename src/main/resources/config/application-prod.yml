@@ -109,7 +109,7 @@ jhipster:
         token-validity-in-seconds: 86400
         token-validity-in-seconds-for-remember-me: 2592000
   cors:
-    allowed-origins: "https://onyxfit-pwa.vercel.app"
+    allowed-origins: "https://onyxfit-pwa.vercel.app,https://onyx-fit.app,https://www.onyx-fit.app"
     allowed-methods: "GET,POST,PUT,PATCH,DELETE,OPTIONS"
     allowed-headers: "Authorization,Content-Type,Accept"
     exposed-headers: "Authorization,Link,X-Total-Count"
