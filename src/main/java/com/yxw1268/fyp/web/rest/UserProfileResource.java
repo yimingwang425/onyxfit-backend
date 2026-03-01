@@ -66,6 +66,22 @@ public class UserProfileResource {
     @PostMapping("")
     public ResponseEntity<UserProfileDTO> createUserProfile(@Valid @RequestBody UserProfileDTO userProfileDTO) throws URISyntaxException {
         LOG.debug("REST request to save UserProfile : {}", userProfileDTO);
+
+        // if current user already has a profile, update it
+        String currentUserLogin = SecurityUtils.getCurrentUserLogin().orElse("");
+        Optional<com.yxw1268.fyp.domain.UserProfile> existing = userProfileRepository.findOneByUserLogin(currentUserLogin);
+
+        if (existing.isPresent()) {
+            LOG.debug("Profile already exists for user {}, updating instead of creating", currentUserLogin);
+            com.yxw1268.fyp.domain.UserProfile existingProfile = existing.get();
+            userProfileDTO.setId(existingProfile.getId());
+            userProfileDTO.setCreatedAt(existingProfile.getCreatedAt());
+            userProfileDTO = userProfileService.update(userProfileDTO);
+            return ResponseEntity.ok()
+                .headers(HeaderUtil.createEntityUpdateAlert(applicationName, true, ENTITY_NAME, userProfileDTO.getId().toString()))
+                .body(userProfileDTO);
+        }
+
         if (userProfileDTO.getId() != null) {
             throw new BadRequestAlertException("A new userProfile cannot already have an ID", ENTITY_NAME, "idexists");
         }
