@@ -37,7 +37,7 @@ public class RegisterController {
     private void sendEmailViaResend(String toEmail, String subject, String htmlContent) {
         try {
             String jsonBody = String.format(
-                "{\"from\":\"OnyxFit <onboarding@resend.dev>\",\"to\":[\"%s\"],\"subject\":\"%s\",\"html\":\"%s\"}",
+                "{\"from\":\"OnyxFit <system@onyx-fit.app>\",\"to\":[\"%s\"],\"subject\":\"%s\",\"html\":\"%s\"}",
                 toEmail,
                 subject,
                 htmlContent.replace("\"", "\\\"")
