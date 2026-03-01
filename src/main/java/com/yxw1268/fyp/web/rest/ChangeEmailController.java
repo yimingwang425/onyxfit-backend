@@ -5,6 +5,7 @@ import com.yxw1268.fyp.domain.User;
 import com.yxw1268.fyp.repository.UserRepository;
 import com.yxw1268.fyp.security.SecurityUtils;
 import com.yxw1268.fyp.service.OtpRecordService;
+import org.springframework.cache.CacheManager;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.slf4j.Logger;
@@ -18,6 +19,7 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Random;
 
@@ -28,13 +30,15 @@ public class ChangeEmailController {
     private final Logger log = LoggerFactory.getLogger(ChangeEmailController.class);
     private final OtpRecordService otpRecordService;
     private final UserRepository userRepository;
+    private final CacheManager cacheManager;
 
     private static final String RESEND_API_KEY = System.getenv("RESEND_API_KEY") != null
         ? System.getenv("RESEND_API_KEY") : "";
 
-    public ChangeEmailController(OtpRecordService otpRecordService, UserRepository userRepository) {
+    public ChangeEmailController(OtpRecordService otpRecordService, UserRepository userRepository, CacheManager cacheManager) {
         this.otpRecordService = otpRecordService;
         this.userRepository = userRepository;
+        this.cacheManager = cacheManager;
     }
 
     private void sendEmailViaResend(String toEmail, String subject, String htmlContent) {
@@ -67,9 +71,10 @@ public class ChangeEmailController {
         String currentLogin = SecurityUtils.getCurrentUserLogin().orElse("");
         log.info("Change email request from user {} to new email {}", currentLogin, newEmail);
 
-        // Check if email is already registered
-        Optional<User> existingUser = userRepository.findOneByEmailIgnoreCase(newEmail);
-        if (existingUser.isPresent()) {
+        // Check if email is already registered (check both login and email columns)
+        Optional<User> existingByEmail = userRepository.findOneByEmailIgnoreCase(newEmail);
+        Optional<User> existingByLogin = userRepository.findOneByLogin(newEmail.toLowerCase());
+        if (existingByEmail.isPresent() || existingByLogin.isPresent()) {
             return ResponseEntity.badRequest().body(Map.of("error", "This email is already registered"));
         }
 
@@ -125,13 +130,20 @@ public class ChangeEmailController {
         record.setVerified(true);
         otpRecordService.save(record);
 
-        // Update user's email in database
+        // Update user's login AND email in database
         Optional<User> userOpt = userRepository.findOneByLogin(currentLogin);
         if (userOpt.isPresent()) {
             User user = userOpt.get();
-            user.setEmail(newEmail);
-            userRepository.save(user);
-            log.info("User {} email updated to {}", currentLogin, newEmail);
+            Objects.requireNonNull(cacheManager.getCache(UserRepository.USERS_BY_LOGIN_CACHE)).evict(currentLogin);
+            if (user.getEmail() != null) {
+                Objects.requireNonNull(cacheManager.getCache(UserRepository.USERS_BY_EMAIL_CACHE)).evict(user.getEmail());
+            }
+            user.setLogin(newEmail.toLowerCase());
+            user.setEmail(newEmail.toLowerCase());
+            userRepository.saveAndFlush(user);
+            Objects.requireNonNull(cacheManager.getCache(UserRepository.USERS_BY_LOGIN_CACHE)).evict(newEmail.toLowerCase());
+            Objects.requireNonNull(cacheManager.getCache(UserRepository.USERS_BY_EMAIL_CACHE)).evict(newEmail.toLowerCase());
+            log.info("User {} login and email updated to {}", currentLogin, newEmail);
         }
 
         return ResponseEntity.ok(Map.of("verified", true));
