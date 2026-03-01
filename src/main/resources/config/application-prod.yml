@@ -44,14 +44,14 @@ spring:
     contexts: prod
   mail:
     host: smtp.gmail.com
-    port: 587
+    port: 465
     username: ${MAIL_USERNAME}
     password: ${MAIL_PASSWORD}
+    protocol: smtps
     properties:
-      mail.smtp.auth: true
-      mail.smtp.starttls.enable: true
-      mail.smtp.starttls.required: true
-      mail.smtp.ssl.trust: smtp.gmail.com
+      mail.smtps.auth: true
+      mail.smtps.ssl.enable: true
+      mail.smtps.ssl.trust: smtp.gmail.com
   thymeleaf:
     cache: true
 
