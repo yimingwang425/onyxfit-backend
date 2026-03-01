@@ -69,7 +69,7 @@ public class UserProfileResource {
      * @throws URISyntaxException if the Location URI syntax is incorrect.
      */
     @PostMapping("")
-    public ResponseEntity<UserProfileDTO> createUserProfile(@Valid @RequestBody UserProfileDTO userProfileDTO) throws URISyntaxException {
+    public ResponseEntity<UserProfileDTO> createUserProfile(@RequestBody UserProfileDTO userProfileDTO) throws URISyntaxException {
         LOG.debug("REST request to save UserProfile : {}", userProfileDTO);
 
         // Get current user's ID
@@ -146,7 +146,7 @@ public class UserProfileResource {
     @PutMapping("/{id}")
     public ResponseEntity<UserProfileDTO> updateUserProfile(
         @PathVariable(value = "id", required = false) final Long id,
-        @Valid @RequestBody UserProfileDTO userProfileDTO
+        @RequestBody UserProfileDTO userProfileDTO
     ) throws URISyntaxException {
         LOG.debug("REST request to update UserProfile : {}, {}", id, userProfileDTO);
         if (userProfileDTO.getId() == null) {

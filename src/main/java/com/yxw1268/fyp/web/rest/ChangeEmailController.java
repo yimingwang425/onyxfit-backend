@@ -67,6 +67,12 @@ public class ChangeEmailController {
         String currentLogin = SecurityUtils.getCurrentUserLogin().orElse("");
         log.info("Change email request from user {} to new email {}", currentLogin, newEmail);
 
+        // Check if email is already registered
+        Optional<User> existingUser = userRepository.findOneByEmailIgnoreCase(newEmail);
+        if (existingUser.isPresent()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "This email is already registered"));
+        }
+
         String otp = String.format("%06d", new Random().nextInt(999999));
 
         OtpRecord record = new OtpRecord();
