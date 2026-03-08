@@ -7,6 +7,7 @@ import com.yxw1268.fyp.service.OtpRecordService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.transaction.annotation.Transactional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -73,7 +74,7 @@ public class PasswordResetController {
         String email = body.get("email");
         log.info("Password reset request for email: {}", email);
 
-        //Check if email exists
+        // Check if email exists
         Optional<User> userOpt = userRepository.findOneByEmailIgnoreCase(email);
         if (userOpt.isEmpty()) {
             log.warn("Password reset requested for non-existent email: {}", email);
@@ -117,6 +118,8 @@ public class PasswordResetController {
         List<OtpRecord> records = otpRecordService.findAll();
         Optional<OtpRecord> recordOpt = records.stream()
             .filter(r -> r.getEmail().equalsIgnoreCase(email))
+            .filter(r -> r.getOtpCode().length() == 6)
+            .filter(r -> !Boolean.TRUE.equals(r.getVerified()))
             .max((r1, r2) -> r1.getExpiryTime().compareTo(r2.getExpiryTime()));
 
         if (recordOpt.isEmpty()) {
@@ -136,7 +139,7 @@ public class PasswordResetController {
         record.setVerified(true);
         otpRecordService.save(record);
 
-        //Generate a reset token
+        // Generate a reset token
         String resetToken = UUID.randomUUID().toString();
         log.info("Password reset token generated for {}: {}", email, resetToken);
 
@@ -155,13 +158,14 @@ public class PasswordResetController {
      * Set new password using reset token
      */
     @PostMapping("/finish")
+    @Transactional
     public ResponseEntity<Map<String, Object>> finishPasswordReset(@RequestBody Map<String, String> body) {
         String resetToken = body.get("resetToken");
         String newPassword = body.get("newPassword");
         String email = body.get("email");
         log.info("Finish password reset for {}", email);
 
-        //Find the token record
+        // Find the token record
         List<OtpRecord> records = otpRecordService.findAll();
         Optional<OtpRecord> tokenOpt = records.stream()
             .filter(r -> r.getEmail().equalsIgnoreCase(email) && r.getOtpCode().equals(resetToken))
@@ -177,16 +181,18 @@ public class PasswordResetController {
             return ResponseEntity.badRequest().body(Map.of("success", false, "error", "Reset token expired"));
         }
 
-        Optional<User> userOpt = userRepository.findOneByEmailIgnoreCase(email);//Update user password
+        // Update user password
+        Optional<User> userOpt = userRepository.findOneByEmailIgnoreCase(email);
         if (userOpt.isEmpty()) {
             return ResponseEntity.badRequest().body(Map.of("success", false, "error", "User not found"));
         }
 
         User user = userOpt.get();
         user.setPassword(passwordEncoder.encode(newPassword));
-        userRepository.save(user);
+        userRepository.saveAndFlush(user);
+        log.info("Password hash updated for user {}", email);
 
-        //Clean up token
+        // Clean up token
         tokenRecord.setVerified(true);
         otpRecordService.save(tokenRecord);
 
